@@ -18,17 +18,6 @@ print(nba[0:3])
 class_column = 'position'
 feature_columns = ['height', 'weight']
 
-colors = ['b','g','r']
-guard = nba[nba['position'] == 'Guard']
-plt.scatter(guard['height'],guard['weight'],c=colors[0])
-forward = nba[nba['position'] == 'Forward']
-plt.scatter(forward['height'],forward['weight'],c=colors[1])
-center = nba[nba['position'] == 'Center']
-plt.scatter(center['height'],center['weight'],c=colors[2])
-plt.xlabel('height',fontsize=13)
-plt.ylabel('weight',fontsize=13)
-# plt.show()
-
 #Pandas DataFrame允许选择列
 #使用列选择将数据分为特征和类别
 nba_feature = nba[feature_columns]
@@ -40,30 +29,38 @@ print(list(nba_class[0:3]))
 train_feature, test_feature, train_class, test_class = train_test_split(nba_feature, nba_class, train_size=0.75, test_size=0.25)
 km = KMeans(n_clusters = 3, random_state=1).fit(train_feature[['height','weight']])
 prediction = km.predict(test_feature)
-def calculateAccuracy(prediction, test_class, test_feature):
-	prediction_list = prediction.tolist()
-	test_class_list = test_class.tolist()
-	test_feature_height_list = test_feature.height.tolist()
-	#预测正确的数量
-	num = 0
-	#总数量
-	total = len(test_class_list)
-	guard = -1
-	forward = -1
-	center = -1
-	listNum = [0,1,2]
-	print("Test set predictions:\n{}".format(prediction))
-	print("\nModel using KMeans Classifier using 75/25")
 
+prediction_list = prediction.tolist()
+test_class_list = test_class.tolist()
+test_feature_height_list = test_feature.height.tolist()
+total = len(test_class_list)
+
+#guard与center位置可以判断出
+def getPos():
+	listNum = [0,1,2]
 	for i in range(total):
 		if test_feature_height_list[i] <= 5.8:
 			guard = prediction_list[i]
 		if test_feature_height_list[i] >= 7.3:
 			center = prediction_list[i]
-
 	listNum.remove(guard)
 	listNum.remove(center)
 	forward = listNum[0]
+
+	return guard,center,forward
+
+
+def calculateAccuracy(prediction, test_class, test_feature):
+	#预测正确的数量
+	num = 0
+	#总数量
+	guard = -1
+	forward = -1
+	center = -1
+	guard,center,forward = getPos()
+	print("Test set predictions:\n{}".format(prediction))
+	print("\nModel using KMeans Classifier using 75/25")
+
 	for i in range(total):
 		if (test_class_list[i] == 'Guard') & (prediction_list[i] == guard):
 			num = num + 1
@@ -87,16 +84,32 @@ temp_df['Predicted Pos']=pd.Series(prediction, index=temp_df.index)
 test_data_df = pd.merge(temp_df, test_feature, left_index=True, right_index=True)
 test_data_df.to_csv('KMeans_test_data.csv', index=False)
 
-guard = test_data_df[test_data_df['Predicted Pos'] == 0]
+#分类前
+plt.figure(figsize=(12, 6))
+plt.subplot(121)
+colors = ['b','g','r']
+guard = test_data_df[test_data_df['position'] == 'Guard']
 plt.scatter(guard['height'],guard['weight'],c=colors[0])
-forward = test_data_df[test_data_df['Predicted Pos'] == 1]
+forward = test_data_df[test_data_df['position'] == 'Forward']
 plt.scatter(forward['height'],forward['weight'],c=colors[1])
-center = test_data_df[test_data_df['Predicted Pos'] == 2]
+center = test_data_df[test_data_df['position'] == 'Center']
 plt.scatter(center['height'],center['weight'],c=colors[2])
 plt.xlabel('height',fontsize=13)
 plt.ylabel('weight',fontsize=13)
+#分类后
+plt.subplot(122)
+Guard,Center,Forward = getPos()
+guard = test_data_df[test_data_df['Predicted Pos'] == Guard]
+plt.scatter(guard['height'],guard['weight'],c=colors[0])
+forward = test_data_df[test_data_df['Predicted Pos'] == Forward]
+plt.scatter(forward['height'],forward['weight'],c=colors[1])
+center = test_data_df[test_data_df['Predicted Pos'] == Center]
+plt.scatter(center['height'],center['weight'],c=colors[2])
+plt.xlabel('height',fontsize=13)
+plt.ylabel('weight',fontsize=13)
+
 plt.show()
 
-# scores = cross_val_score(km, nba_feature, nba_class, cv=10)
-# print("Cross-validation scores: {}".format(scores))
-# print("Average cross-validation score: {:.2f}".format(scores.mean()))
+scores = cross_val_score(km, nba_feature[['height','weight']],  cv=10)
+print("Cross-validation scores: {}".format(scores))
+print("Average cross-validation score: {:.2f}".format(scores.mean()))
